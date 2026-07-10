@@ -78,6 +78,14 @@ Availability filters apply only to provider-backed Titles.
 
 ---
 
+# Excluded Filters
+
+Content rating and maturity/age filtering are intentionally not implemented in v1. All results — personal Library and provider-backed — are shown without restriction.
+
+This is a deliberate decision recorded in 21_SEARCH_ENGINE.md, not an omission. A future coding agent or contributor must not add a rating/maturity filter, toggle, or default-hidden content behavior without a new decision record.
+
+---
+
 # Filter Behavior
 
 - Multiple filters may be combined.

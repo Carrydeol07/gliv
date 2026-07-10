@@ -68,3 +68,5 @@ If no suitable provider result exists, the user may:
 - Provider differences remain invisible to the user.
 - Search results are normalized before display.
 - Manual Title creation is available when no supported provider result exists.
+- GLIV applies no content rating or age filtering. All provider results are shown exactly as returned.
+- Filtering by content rating or maturity level is out of scope for v1.

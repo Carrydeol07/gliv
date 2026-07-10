@@ -304,3 +304,53 @@ This brings the schema in line with decisions already locked elsewhere (ADR-009,
 - Every code path that creates an external_reference row (Import Engine, Search Import, manual linking) must supply `confidence` and pick the correct verification_state.
 - Re-syncing a Title that already has a USER_CONFIRMED or AUTO reference for the same provider_id + provider_entity_id updates that row's `last_verified` rather than creating a new PENDING candidate.
 - BR-002 (Title Identity & Import Resolution) can now be written against a schema that actually supports what ADR-009 and 19_IMPORT_SYSTEM.md already promise.
+
+---
+
+## ADR-015 Comick Provider Rejected
+
+**Context**
+
+Comick has no official, documented public API. Every available integration path found (PHP wrapper classes, Go wrappers, scraper-based "source APIs," third-party Apify actors) is an unofficial client built against an undocumented internal endpoint, maintained by unrelated third parties with no versioning, changelog, or stability guarantee.
+
+ADR-006 listed Comick as the Secondary provider for Manga / Manhwa / Manhua (posters, covers, backup artwork). Because Comick was Secondary rather than Primary, 03_PRINCIPLES.md's "only stable official APIs for primary integrations" rule did not technically forbid it — but depending on an undocumented, unofficial endpoint for any production integration, even a fallback one, is a risk this project is choosing not to accept.
+
+**Decision**
+
+Supersedes ADR-006, Comick portion only. AniList, Jikan, and MangaUpdates are unaffected.
+
+Comick is removed from GLIV entirely. The Secondary provider for Manga / Manhwa / Manhua becomes **None** — the same pattern already used for Novels, which have no Secondary provider.
+
+No replacement Secondary is introduced for Poster/Cover fallback. When MangaUpdates artwork is unavailable, GLIV falls back directly to the placeholder-artwork behavior already defined in 23_SERIES_CARD_SPECIFICATION.md ("Empty Metadata") and the graceful-failure behavior already defined in 46_CACHE_SYSTEM_SPECIFICATION.md. No new component or logic is required to support this.
+
+**Supersession Notice**
+
+Every existing mention of Comick anywhere in the documentation set is superseded by this ADR and must be treated as void, including:
+
+- `05_ARCHITECTURE.md` — the `CM[Comick]` node and `PM --> CM` edge in the architecture diagram; "Manga / Manhwa / Manhua Secondary: Comick"
+- `07_PROVIDERS.md` — the "Secondary — Comick" line and the "Comick provides" section
+- ADR-006 (`17_DECISIONS.md`) — "Secondary: Comick (Manga / Manhwa / Manhua only)"
+- `20_PROVIDER_MANAGER.md` — "Manga / Manhwa / Manhua Secondary: Comick"
+- `21_SEARCH_ENGINE.md` — "Comick (Secondary for Manga / Manhwa / Manhua only)"
+- `60_PROVIDER_CAPABILITY_MATRIX.md` — the Comick cell in the Poster/Cover row, and the "Comick" provider summary section
+- `23_SERIES_CARD_SPECIFICATION.md` — step 4 ("Comick") in the poster priority list
+- `31_PROVIDER_MANAGER_SPECIFICATION.md` — "Secondary — Comick" and the Comick branch of the Search Flow diagram
+- `GLIV_PROJECT_SUMMARY.md` — the "Comick" cell in the Providers table
+
+None of these files need to be hand-edited before implementation begins. This ADR is binding wherever it conflicts with any of them, exactly as `18_DATABASE_SCHEMA.md` is already marked Superseded relative to `32_DATABASE_SPECIFICATION.md`. Any implementation agent or reviewer encountering "Comick" elsewhere in the docs should treat it as historical/void text.
+
+**Alternatives Considered**
+
+- Keep Comick since Secondary providers aren't held to the stable-API rule. Rejected — a fallback role still means production code depends on an undocumented target that could change or disappear without notice, for a capability (posters) that no Business Rule depends on.
+- Hand-edit all nine locations above immediately. Rejected for now — the docs are already stabilized and locked; this ADR fully neutralizes every mention without touching locked files. Physical cleanup can happen later as routine housekeeping and doesn't block implementation.
+
+**Rationale**
+
+Same pattern already used twice in this doc set: NovelUpdates was removed as a provider during stabilization, and ADR-014 corrected external_references without rewriting ADR-012. ADRs are append-only specifically so a later decision can override an earlier one without touching every downstream file.
+
+**Consequences**
+
+- The Provider Manager (`20_PROVIDER_MANAGER.md`, `31_PROVIDER_MANAGER_SPECIFICATION.md`) is implemented with routing for AniList, Jikan, and MangaUpdates only. No Comick client, endpoint, or fallback path is built.
+- `60_PROVIDER_CAPABILITY_MATRIX.md`'s Poster/Cover capability has a Secondary value of None for Manga / Manhwa / Manhua, matching every Novel row.
+- `23_SERIES_CARD_SPECIFICATION.md`'s poster priority is effectively: User override (future) → MangaUpdates → AniList → Placeholder.
+- Any future ADR reintroducing a secondary poster/cover source must supersede both this ADR and the relevant portion of ADR-006.
