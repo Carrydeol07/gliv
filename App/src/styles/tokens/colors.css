@@ -1,0 +1,23 @@
+:root {
+  /* PLACEHOLDER — pending design decision */
+  /* Colors communicate meaning per 22_UI_DESIGN_SYSTEM.md */
+  
+  /* Background / Surface */
+  --color-bg: #121212;
+  --color-surface: #1e1e1e;
+  --color-surface-hover: #2a2a2a;
+  
+  /* Text */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  
+  /* Semantic */
+  --color-accent: #007acc;
+  --color-success: #28a745;
+  --color-warning: #ffc107;
+  --color-error: #dc3545;
+  --color-info: #17a2b8;
+
+  /* Layout */
+  --color-border: #333333;
+}

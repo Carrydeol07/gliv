@@ -1,0 +1,19 @@
+:root {
+  /* PLACEHOLDER — pending design decision */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+
+  /* PLACEHOLDER — pending design decision */
+  --border-radius: 12px;
+
+  /* PLACEHOLDER — pending design decision */
+  --anim-standard: 180ms;
+
+  /* PLACEHOLDER — pending design decision */
+  --poster-ratio-w: 2;
+  --poster-ratio-h: 3;
+}

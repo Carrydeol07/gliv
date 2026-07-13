@@ -1,0 +1,44 @@
+.sidebar {
+  width: 240px;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-16);
+}
+
+.brand {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-32);
+  padding: 0 var(--spacing-8);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.navItem {
+  display: block;
+  padding: var(--spacing-8) var(--spacing-12);
+  border-radius: var(--border-radius);
+  color: var(--color-text-secondary);
+  transition: background-color var(--anim-standard) ease, color var(--anim-standard) ease;
+}
+
+.navItem:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.navItem.active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.spacer {
+  flex: 1;
+}

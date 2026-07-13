@@ -1,0 +1,13 @@
+.appShell {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.mainContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-24);
+  background-color: var(--color-bg);
+}

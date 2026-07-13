@@ -1,0 +1,28 @@
+{
+  "name": "gliv",
+  "version": "1.0.0",
+  "description": "GLIV - The Definitive Personal Media Library",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev:react": "vite",
+    "dev:electron": "tsc -p tsconfig.electron.json && electron .",
+    "build:react": "tsc && vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "npm run build:react && npm run build:electron"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/react": "^18.3.4",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^32.0.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2"
+  }
+}

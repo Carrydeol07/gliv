@@ -1,0 +1,15 @@
+:root {
+  /* PLACEHOLDER — pending design decision */
+  --font-family-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  
+  /* PLACEHOLDER — pending design decision */
+  --font-size-title: 24px;
+  --font-size-section: 18px;
+  --font-size-body: 14px;
+  --font-size-supporting: 12px;
+
+  /* PLACEHOLDER — pending design decision */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+}
