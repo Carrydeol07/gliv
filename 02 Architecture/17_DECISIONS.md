@@ -354,3 +354,29 @@ Same pattern already used twice in this doc set: NovelUpdates was removed as a p
 - `60_PROVIDER_CAPABILITY_MATRIX.md`'s Poster/Cover capability has a Secondary value of None for Manga / Manhwa / Manhua, matching every Novel row.
 - `23_SERIES_CARD_SPECIFICATION.md`'s poster priority is effectively: User override (future) → MangaUpdates → AniList → Placeholder.
 - Any future ADR reintroducing a secondary poster/cover source must supersede both this ADR and the relevant portion of ADR-006.
+
+---
+
+## ADR-016 Metadata and Notes Placement
+
+**Context**
+
+During the Database Schema implementation (Module 02), decisions were required on where to attach Metadata (Synopsis, Genres, Tags, Characters, Alternative Titles) and Personal Notes in the database schema. While Contributors were explicitly called out as a Format-level exception in the documentation, Metadata and Notes attachment was not explicitly locked. Additionally, `43_FILTER_SYSTEM_SPECIFICATION.md` requires Discover and Library filters to query by Genre, which SQLite cannot efficiently do if Genres are stored in a JSON column. Finally, a contradiction was identified in the `status` enum values between `08_LIBRARY.md` (5 values) and `43_FILTER_SYSTEM_SPECIFICATION.md` (6 values, including "Planning").
+
+**Decision**
+
+1. Metadata (Synopsis, Genres, Tags, Characters, Alternative Titles) and Personal Notes are attached to `title_id`, not `format_id`.
+2. Genres, Tags, and Characters are stored in normalized junction tables (`genres`, `title_genres`, etc.) rather than as JSON columns in the `metadata` table.
+3. The Format `status` enum is locked to exactly 5 values: `Reading`, `Watching`, `Completed`, `Paused`, `Dropped`.
+
+**Rationale**
+
+1. Attaching metadata and notes to Titles aligns with `12_SEARCH_SERIES.md`, where the Series Page layout displays Synopsis and Personal Notes once at the Series level rather than per Format Card.
+2. Normalized junction tables provide the necessary performance and queryability for the filtering system specified in `43_FILTER_SYSTEM_SPECIFICATION.md`.
+3. The "Planning" status in `43_FILTER_SYSTEM_SPECIFICATION.md` contradicts the Library's core scope rule ("Only Titles you have started appear in the Library") and is redundant with the "Plan to Watch / Read" built-in collection. Locking to 5 values resolves this contradiction correctly.
+
+**Consequences**
+
+- The database schema (Module 02) implements normalized junction tables and Title-level attachments for metadata and notes.
+- The `formats.status` column is strictly constrained to the 5 approved values.
+- As a routine documentation cleanup, `43_FILTER_SYSTEM_SPECIFICATION.md` should have "Planning" removed from its status filter list in a future housekeeping update. This does not block implementation.

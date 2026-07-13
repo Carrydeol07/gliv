@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { migration as initialSchema } from './001_initial_schema';
 
 /**
  * Migration runner scaffold.
@@ -19,9 +20,9 @@ export function runMigrations(db: Database.Database): void {
   const stmt = db.prepare('SELECT name FROM _migrations ORDER BY id ASC');
   const appliedMigrations = stmt.all() as { name: string }[];
   
-  // List of pending migrations (empty for Module 01)
+  // List of pending migrations
   const migrations: Array<{ name: string; up: string }> = [
-    // Schema creation is deferred to Phase 2
+    initialSchema
   ];
 
   const appliedNames = new Set(appliedMigrations.map(m => m.name));

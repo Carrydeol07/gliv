@@ -19,6 +19,7 @@ export class DatabaseService {
       });
 
       this.db.pragma('journal_mode = WAL');
+      this.db.pragma('foreign_keys = ON');
 
       // Run migrations (currently an empty scaffold)
       runMigrations(this.db);

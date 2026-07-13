@@ -17,7 +17,17 @@ All future database changes must be made here.
 
 - titles
 - formats
+- publication_info
+- official_platforms
+- scanlation_groups
 - metadata
+- genres
+- title_genres
+- tags
+- title_tags
+- characters
+- title_characters
+- alternative_titles
 - contributors
 - format_contributors
 - connections
@@ -84,17 +94,95 @@ Once assigned, the value is immutable and is never modified by provider synchron
 
 ---
 
+## publication_info
+
+One row per provider-backed Format.
+
+Fields:
+- format_id (FK → formats, unique — one-to-one)
+- publication_status
+- start_date
+- end_date
+- chapter_count
+- episode_count
+- volume_count
+- latest_official_release
+- latest_scanlation_release
+- official_publisher
+- license_status
+
+Layer: Publication (Layer 3), refreshable, never overwrites personal data.
+
+---
+
+## official_platforms
+
+Many rows per Format — a Format may be available on more than one official platform.
+
+Fields:
+- id
+- format_id (FK → formats)
+- platform_name
+
+Layer: Publication.
+
+---
+
+## scanlation_groups
+
+Many rows per Format.
+
+Fields:
+- id
+- format_id (FK → formats)
+- group_name
+- latest_release
+- release_date
+- translation_status
+- active_status
+
+Layer: Live (Layer 3). Informational only, never affects personal progress.
+
+---
+
 ## metadata
 
-Refreshable provider metadata.
+One row per Title. Refreshable provider metadata.
 
-Examples:
+Fields:
+- title_id (FK → titles, unique — one-to-one)
+- synopsis
 
-- Synopsis
-- Genres
-- Tags
-- Characters
-- Alternative Titles
+Genres, Tags, Characters, and Alternative Titles are normalized into their own
+tables (below) rather than stored as columns here, so Discover/Library filters
+can query them directly.
+
+---
+
+## genres / title_genres
+
+genres: id, name
+title_genres: title_id (FK), genre_id (FK) — many-to-many
+
+---
+
+## tags / title_tags
+
+tags: id, name
+title_tags: title_id (FK), tag_id (FK) — many-to-many
+
+---
+
+## characters / title_characters
+
+characters: id, name
+title_characters: title_id (FK), character_id (FK) — many-to-many
+
+---
+
+## alternative_titles
+
+id, title_id (FK), alt_title — one-to-many
 
 ---
 
@@ -177,9 +265,12 @@ Many-to-many relationship between Titles and Collections.
 
 ## notes
 
-Personal notes.
+Fields:
+- title_id (FK → titles)
+- content
 
-Layer 1 only.
+Personal Notes are attached to the Title, not the Format — matching
+12_SEARCH_SERIES.md, where Personal Notes appear once per Series Page.
 
 ---
 
