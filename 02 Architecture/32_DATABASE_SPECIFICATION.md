@@ -25,6 +25,8 @@ All future database changes must be made here.
 - title_genres
 - tags
 - title_tags
+- personal_tags
+- title_personal_tags
 - characters
 - title_characters
 - alternative_titles
@@ -170,6 +172,28 @@ title_genres: title_id (FK), genre_id (FK) — many-to-many
 
 tags: id, name
 title_tags: title_id (FK), tag_id (FK) — many-to-many
+
+---
+
+## personal_tags / title_personal_tags
+
+User-created tags, entirely distinct from provider-sourced tags.
+
+personal_tags:
+id, name (UNIQUE)
+
+title_personal_tags:
+title_id (FK → titles)
+personal_tag_id (FK → personal_tags)
+UNIQUE(title_id, personal_tag_id)
+
+Layer: Personal (Layer 1).
+personal_tags are created, renamed, and deleted only through explicit user
+action. Provider synchronization and the Import Engine never read from or
+write to personal_tags or title_personal_tags.
+A personal_tag may be attached to multiple Titles. Deleting a personal_tag
+detaches it from every Title that used it; it does not delete the Titles
+themselves.
 
 ---
 
