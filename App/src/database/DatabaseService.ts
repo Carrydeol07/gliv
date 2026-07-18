@@ -42,5 +42,16 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * Returns the underlying better-sqlite3 database instance.
+   * Required by services (like ProviderManager) for write operations.
+   */
+  public getDb(): Database.Database {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+    return this.db;
+  }
+
   // Future methods for Phase 2 will go here
 }
