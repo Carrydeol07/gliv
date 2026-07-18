@@ -15,7 +15,6 @@ export class DatabaseService {
       const dbPath = path.join(app.getPath('userData'), 'gliv.sqlite');
       this.db = new Database(dbPath, {
         // Enable WAL mode for better performance
-        // This is safe since we don't have schema defined yet
       });
 
       this.db.pragma('journal_mode = WAL');

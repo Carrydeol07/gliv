@@ -211,4 +211,59 @@ describe('Database Schema (Module 02)', () => {
     const custom = db.prepare("SELECT sort_order FROM collections WHERE name = 'My List'").get() as any;
     expect(custom.sort_order).toBe(5);
   });
+
+  it('allows personal_tags to be created and attached to multiple titles', () => {
+    const titleId1 = insertTitle(db);
+    const titleId2 = insertTitle(db);
+
+    const result = db.prepare('INSERT INTO personal_tags (name) VALUES (?)').run('MyTag');
+    const tagId = Number(result.lastInsertRowid);
+
+    // Attach to title 1
+    expect(() => {
+      db.prepare('INSERT INTO title_personal_tags (title_id, personal_tag_id) VALUES (?, ?)').run(titleId1, tagId);
+    }).not.toThrow();
+
+    // Attach to title 2
+    expect(() => {
+      db.prepare('INSERT INTO title_personal_tags (title_id, personal_tag_id) VALUES (?, ?)').run(titleId2, tagId);
+    }).not.toThrow();
+
+    // Reject duplicate attachment
+    expect(() => {
+      db.prepare('INSERT INTO title_personal_tags (title_id, personal_tag_id) VALUES (?, ?)').run(titleId1, tagId);
+    }).toThrow(/UNIQUE constraint failed/);
+  });
+
+  it('cascades personal_tag deletion without deleting the title', () => {
+    db.pragma('foreign_keys = ON');
+    
+    const titleId = insertTitle(db);
+    const tagId = Number(db.prepare('INSERT INTO personal_tags (name) VALUES (?)').run('DeleteMe').lastInsertRowid);
+    db.prepare('INSERT INTO title_personal_tags (title_id, personal_tag_id) VALUES (?, ?)').run(titleId, tagId);
+
+    // Verify it exists
+    expect((db.prepare('SELECT count(*) as count FROM title_personal_tags WHERE personal_tag_id = ?').get(tagId) as any).count).toBe(1);
+
+    // Delete tag
+    db.prepare('DELETE FROM personal_tags WHERE id = ?').run(tagId);
+
+    // Verify mapping is gone
+    expect((db.prepare('SELECT count(*) as count FROM title_personal_tags WHERE personal_tag_id = ?').get(tagId) as any).count).toBe(0);
+
+    // Verify title still exists
+    expect((db.prepare('SELECT count(*) as count FROM titles WHERE id = ?').get(titleId) as any).count).toBe(1);
+  });
+
+  it('keeps personal_tags strictly independent of other systems', () => {
+    // Check there are no foreign keys from other tables referencing personal_tags
+    const fks = db.prepare("PRAGMA foreign_key_list('tags')").all() as any[];
+    expect(fks.find(fk => fk.table === 'personal_tags')).toBeUndefined();
+    
+    const extFks = db.prepare("PRAGMA foreign_key_list('external_references')").all() as any[];
+    expect(extFks.find(fk => fk.table === 'personal_tags')).toBeUndefined();
+    
+    const syncFks = db.prepare("PRAGMA foreign_key_list('sync_history')").all() as any[];
+    expect(syncFks.find(fk => fk.table === 'personal_tags')).toBeUndefined();
+  });
 });
