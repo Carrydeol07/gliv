@@ -52,9 +52,9 @@ class DatabaseService {
             const dbPath = path.join(electron_1.app.getPath('userData'), 'gliv.sqlite');
             this.db = new better_sqlite3_1.default(dbPath, {
             // Enable WAL mode for better performance
-            // This is safe since we don't have schema defined yet
             });
             this.db.pragma('journal_mode = WAL');
+            this.db.pragma('foreign_keys = ON');
             // Run migrations (currently an empty scaffold)
             (0, migrations_1.runMigrations)(this.db);
             this.isInitialized = true;
@@ -73,6 +73,16 @@ class DatabaseService {
             this.db.close();
             this.isInitialized = false;
         }
+    }
+    /**
+     * Returns the underlying better-sqlite3 database instance.
+     * Required by services (like ProviderManager) for write operations.
+     */
+    getDb() {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+        return this.db;
     }
 }
 exports.DatabaseService = DatabaseService;

@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runMigrations = runMigrations;
+const _001_initial_schema_1 = require("./001_initial_schema");
+const _002_personal_tags_1 = require("./002_personal_tags");
 /**
  * Migration runner scaffold.
  * In Phase 2, this will receive the schema and run migrations in order.
@@ -18,9 +20,10 @@ function runMigrations(db) {
     // Read applied migrations
     const stmt = db.prepare('SELECT name FROM _migrations ORDER BY id ASC');
     const appliedMigrations = stmt.all();
-    // List of pending migrations (empty for Module 01)
+    // List of pending migrations
     const migrations = [
-    // Schema creation is deferred to Phase 2
+        _001_initial_schema_1.migration,
+        _002_personal_tags_1.migration
     ];
     const appliedNames = new Set(appliedMigrations.map(m => m.name));
     for (const migration of migrations) {
