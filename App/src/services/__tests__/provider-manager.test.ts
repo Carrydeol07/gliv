@@ -30,25 +30,25 @@ describe('ProviderManager', () => {
   describe('graceful failure handling', () => {
     it('returns empty array on manga search when MangaUpdates fails', async () => {
       global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-      const results = await manager.search('test', MediaType.MANGA);
+      const results = await manager.search('test', MediaType.MANGA, 'discover');
       expect(results).toEqual([]);
     });
 
     it('returns empty array on novel search when MangaUpdates fails', async () => {
       global.fetch = vi.fn().mockRejectedValue(new Error('Timeout'));
-      const results = await manager.search('test', MediaType.NOVEL);
+      const results = await manager.search('test', MediaType.NOVEL, 'discover');
       expect(results).toEqual([]);
     });
 
     it('returns null on metadata fetch failure', async () => {
       global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-      const result = await manager.getMetadata(ProviderId.MANGAUPDATES, '123');
+      const result = await manager.getMetadata(ProviderId.MANGAUPDATES, '123', 'discover');
       expect(result).toBeNull();
     });
 
     it('logs failure to sync_history on primary failure', async () => {
       global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-      await manager.search('test', MediaType.MANGA);
+      await manager.search('test', MediaType.MANGA, 'discover');
       expect(mockDb.prepare).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO sync_history')
       );
@@ -63,7 +63,7 @@ describe('ProviderManager', () => {
         ok: true,
         json: async () => ({ results: [{ record: { series_id: 1, title: 'Test', type: 'Manga' } }] })
       });
-      await manager.search('test', MediaType.MANGA);
+      await manager.search('test', MediaType.MANGA, 'discover');
       expect(mockDb.run).toHaveBeenCalledWith(
         'mangaupdates',
         'SUCCESS',
@@ -100,7 +100,7 @@ describe('ProviderManager', () => {
         };
       });
 
-      const results = await manager.search('Naruto', MediaType.ANIME);
+      const results = await manager.search('Naruto', MediaType.ANIME, 'discover');
       
       // Should be deduplicated to 1 result with 2 provider references because MAL ID (20) matched
       expect(results.length).toBe(1);
@@ -131,7 +131,7 @@ describe('ProviderManager', () => {
         };
       });
 
-      const results = await manager.search('Naruto', MediaType.ANIME);
+      const results = await manager.search('Naruto', MediaType.ANIME, 'discover');
       expect(results.length).toBe(2);
     });
   });
@@ -141,6 +141,45 @@ describe('ProviderManager', () => {
     it('delegates to ProviderUrlGenerator', () => {
       const url = manager.getProviderUrl(ProviderId.ANILIST, '12345');
       expect(url).toBe('https://anilist.co/anime/12345');
+    });
+  });
+
+  // ─── CACHE HIT BEHAVIOR ──────────────────────────────────
+  describe('Cache Hit Behavior', () => {
+    it('does not call Secondary provider if Primary fails but Cache has data', async () => {
+      // We will mock CapabilityRouter to force a sequential fallback scenario
+      // For non-Anime, search uses sequential fallback. We mock a route with a secondary.
+      vi.spyOn(manager as any, 'getProviderUrl').mockImplementation(() => ''); // prevent errors
+      
+      const { CapabilityRouter } = await import('../CapabilityRouter');
+      vi.spyOn(CapabilityRouter, 'getRoute').mockReturnValue({ primary: ProviderId.MANGAUPDATES, secondary: ProviderId.ANILIST });
+      
+      const mockPrimaryClient = (manager as any).clients.get(ProviderId.MANGAUPDATES);
+      const mockSecondaryClient = (manager as any).clients.get(ProviderId.ANILIST);
+      
+      vi.spyOn(mockPrimaryClient, 'search').mockRejectedValue(new Error('Network error'));
+      const secondarySpy = vi.spyOn(mockSecondaryClient, 'search').mockResolvedValue([]);
+      
+      // Pre-seed the cache with valid ProviderSearchResult
+      const cache = (manager as any).cache;
+      const validResult = { 
+        providerId: ProviderId.MANGAUPDATES,
+        providerEntityId: '1',
+        title: 'Cached Manga', 
+        formats: [MediaType.MANGA],
+        poster: null,
+        synopsis: null,
+        publicationInfo: null,
+        availability: null
+      };
+      cache.set(`search:${MediaType.MANGA}:test`, [validResult], 3600000, 'discover', 'mangaupdates');
+      
+      const results = await manager.search('test', MediaType.MANGA, 'discover');
+      
+      // The network should fail for primary, hit cache, and skip secondary
+      expect(results.length).toBe(1);
+      expect(results[0].title).toBe('Cached Manga');
+      expect(secondarySpy).not.toHaveBeenCalled();
     });
   });
 });

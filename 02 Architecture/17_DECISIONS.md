@@ -440,3 +440,50 @@ continue not to.
 using it; per `44_DIALOG_SYSTEM_SPECIFICATION.md`'s Confirmation Dialog
 pattern, this should require confirmation. This is a Design-layer
 follow-up, not a schema blocker — noted here so it isn't lost.
+
+---
+
+## ADR-018 Split-Tier Cache: Library Persistent / Discover In-Memory
+
+**Context**
+
+46_CACHE_SYSTEM_SPECIFICATION.md defines a single cache layer without specifying whether entries persist across application restarts. Module 05 planning surfaced this as a genuine gap — the roadmap calls it "Local Cache," which fits either an in-memory or a persistent implementation.
+
+Two existing decisions bear on this. ADR-002 commits GLIV to offline-first behavior. Separately, 45_SYNC_ENGINE_SPECIFICATION.md and BR-002 already draw a line between provider-backed Formats that belong to a Title in the user's Library (which have an `external_reference` and participate in ongoing synchronization) and provider data encountered only through Discover/Search (which does not belong to the Library and is never synchronized). A single uniform cache tier ignores a distinction the rest of the architecture already makes.
+
+**Decision**
+
+The Cache System is split into two tiers.
+
+**Library Tier (Persistent).** Applies to provider-backed Formats that belong to a Title in the user's Library. Stored in a new `cache_entries` table (see 32_DATABASE_SPECIFICATION.md patch). Survives application restarts.
+
+**Discover Tier (In-Memory).** Applies to search/browse results not yet added to the Library. Never written to disk. Fully cleared when the application closes.
+
+The caller (e.g., Import Engine or UI route controller) supplies the scope explicitly. Provider Manager simply forwards it to the Cache System without inferring or re-deciding it. The Cache System never infers scope by querying the database.
+
+**No promotion on Library entry.** When a Discover result is added to the Library through Import Review (BR-002), its in-memory entry is not copied into the persistent tier. The persistent entry is populated naturally by the first Sync Engine cycle for that Format.
+
+**Orphan grace period on Library removal.** When a Format is removed from the Library, its Library-tier `cache_entries` rows are not deleted immediately. Instead, `orphaned_at` is set to the removal time. If the same Format is added back to the Library before 7 days have passed, `orphaned_at` is cleared and the entry resumes normal behavior. If 7 days pass, the entry is permanently deleted by a startup cleanup routine.
+
+The orphan window never overrides normal freshness. An entry past its `expires_at` is treated as a miss and triggers a normal provider refetch when read, regardless of whether it is also within its 7-day orphan window. `orphaned_at` governs only whether the row still exists on disk, never whether it is considered fresh.
+
+**Alternatives Considered**
+
+- *Single persistent tier for everything.* Rejected — Discover/search results churn constantly and have no "belongs to the Library" boundary to bound growth; persisting them indefinitely bloats the database for data unlikely to be reused.
+- *Single in-memory tier for everything.* Rejected — this weakens the offline-first guarantee for data the user actually tracks: a full app restart would force re-fetching provider data for every Format already in the Library, which 45_SYNC_ENGINE_SPECIFICATION.md's design otherwise avoids.
+- *CacheService or Provider Manager infers scope via a database lookup instead of an explicit caller-supplied parameter.* Rejected — this adds a database round-trip to every cache read/write. The caller already knows the context of the operation it's performing.
+- *Delete Library-tier entries immediately on removal, no grace period.* Rejected — accidental removal, or removal/re-adding during routine library reorganization, would force an unnecessary provider refetch with no benefit.
+- *Promote a Discover entry into the persistent tier at the moment Import Review commits.* Rejected — this is migration logic for a case the Sync Engine already handles naturally on its next cycle; unnecessary complexity for this module's first release.
+
+**Rationale**
+
+This aligns cache persistence with a boundary the architecture already draws elsewhere (BR-002, BR-003, 45_SYNC_ENGINE_SPECIFICATION.md) rather than inventing a new one. It keeps the Cache System's contract simple — the caller states which tier applies — and avoids scope creep into promotion or migration logic that no Business Rule currently requires.
+
+**Consequences**
+
+- `cache_entries` (32_DATABASE_SPECIFICATION.md) stores Library-tier entries only, and gains a nullable `orphaned_at` field.
+- `CacheService.get` / `CacheService.set` require an explicit `scope: 'library' | 'discover'` parameter, supplied by the caller.
+- The Discover tier is a simple in-memory structure with no schema, no persistence, and no orphan tracking. It is fully cleared on process exit.
+- A startup cleanup routine deletes any `cache_entries` row whose `orphaned_at` is more than 7 days in the past.
+- Removing a Format from the Library sets `orphaned_at` on its cache_entries rows rather than deleting them; re-adding the same Format within 7 days clears `orphaned_at`.
+- Any future Diagnostics/Settings surface reporting cache size or status must account for two tiers, not one.

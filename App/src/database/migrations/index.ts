@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { migration as initialSchema } from './001_initial_schema';
 import { migration as personalTags } from './002_personal_tags';
+import { migration as cacheEntries } from './003_cache_entries';
 
 /**
  * Migration runner scaffold.
@@ -24,7 +25,8 @@ export function runMigrations(db: Database.Database): void {
   // List of pending migrations
   const migrations: Array<{ name: string; up: string }> = [
     initialSchema,
-    personalTags
+    personalTags,
+    cacheEntries
   ];
 
   const appliedNames = new Set(appliedMigrations.map(m => m.name));

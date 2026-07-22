@@ -4,9 +4,13 @@ import { ImportReviewAction } from '../types';
 import { NormalizedSearchResult, ProviderId, MediaType } from '../../../models/provider.types';
 import Database from 'better-sqlite3';
 import { migration } from '../../../database/migrations/001_initial_schema';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import { CacheService, SplitTierCacheService } from '../cache/CacheService';
 
 // Setup and teardown for the DatabaseService to use an in-memory SQLite for testing
 let dbService: DatabaseService;
+let cacheService: CacheService;
 let engine: ImportEngine;
 let db: Database.Database;
 
@@ -26,7 +30,21 @@ beforeEach(() => {
   
   dbService.initialize();
   db = dbService.getDb();
-  engine = new ImportEngine(dbService);
+  
+  // Need to mock CacheService as it relies on DatabaseService which needs the cache_entries table.
+  // Wait, the migration we are using is 001_initial_schema, which doesn't have cache_entries!
+  // We can either update the test to run 003_cache_entries, or mock CacheService. Let's mock it.
+  cacheService = {
+    get: vi.fn(),
+    set: vi.fn(),
+    invalidate: vi.fn(),
+    invalidateProvider: vi.fn(),
+    clear: vi.fn(),
+    markOrphaned: vi.fn(),
+    clearOrphaned: vi.fn()
+  } as unknown as CacheService;
+
+  engine = new ImportEngine(dbService, cacheService);
 });
 
 afterEach(() => {

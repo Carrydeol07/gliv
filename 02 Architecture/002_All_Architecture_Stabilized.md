@@ -2,7 +2,7 @@
 ## 05_ARCHITECTURE.md
 ############################################################
 
-# # GLIV v2
+# GLIV v2
 
 # 05_ARCHITECTURE.md
 
@@ -116,6 +116,78 @@ Titles not supported by a provider become Manual Titles.
 - Personal data is never owned by providers.
 - Manual Title creation exists outside Provider Manager routing.
 - Only stable official APIs are used as primary provider integrations.
+```
+
+############################################################
+## 06_DATABASE.md
+############################################################
+
+> **Status:** Superseded (Historical)
+>
+> This document is retained for historical reference only.
+>
+> The authoritative database schema is defined in **32_DATABASE_SPECIFICATION.md**.
+>
+> All future schema changes must be made only to **32_DATABASE_SPECIFICATION.md**.
+# GLIV v2
+
+# 06_DATABASE.md
+
+## Core Model
+
+``` mermaid
+erDiagram
+
+TITLE ||--o{ FORMAT : contains
+TITLE ||--o{ NOTE : has
+TITLE ||--o{ COLLECTION : belongs_to
+TITLE ||--o{ CONNECTION : links
+TITLE ||--|| METADATA : enriches
+
+AUTHOR ||--o{ TITLE : writes
+ARTIST ||--o{ TITLE : illustrates
+```
+
+## Main Entities
+
+Title
+
+Format
+
+Metadata
+
+Author
+
+Artist
+
+Connections
+
+Collections
+
+Notes
+
+## Format
+
+One title may contain:
+
+-   Anime
+-   Manga
+-   Manhwa
+-   Manhua
+-   Novel
+
+Each keeps:
+
+-   Progress
+-   Status
+-   Dates
+-   Format-specific information
+
+Original Order belongs to the Title, never the format.
+
+## Rule
+
+There must never be duplicate Titles.
 
 ############################################################
 ## 07_PROVIDERS.md
@@ -245,7 +317,7 @@ flowchart LR
 ## 17_DECISIONS.md
 ############################################################
 
-# # GLIV v2
+# GLIV v2
 
 # 17_DECISIONS.md
 
@@ -552,7 +624,6 @@ This brings the schema in line with decisions already locked elsewhere (ADR-009,
 - Re-syncing a Title that already has a USER_CONFIRMED or AUTO reference for the same provider_id + provider_entity_id updates that row's `last_verified` rather than creating a new PENDING candidate.
 - BR-002 (Title Identity & Import Resolution) can now be written against a schema that actually supports what ADR-009 and 19_IMPORT_SYSTEM.md already promise.
 
-
 ---
 
 ## ADR-015 Comick Provider Rejected
@@ -604,6 +675,137 @@ Same pattern already used twice in this doc set: NovelUpdates was removed as a p
 - Any future ADR reintroducing a secondary poster/cover source must supersede both this ADR and the relevant portion of ADR-006.
 
 ---
+
+## ADR-016 Metadata and Notes Placement
+
+**Context**
+
+During the Database Schema implementation (Module 02), decisions were required on where to attach Metadata (Synopsis, Genres, Tags, Characters, Alternative Titles) and Personal Notes in the database schema. While Contributors were explicitly called out as a Format-level exception in the documentation, Metadata and Notes attachment was not explicitly locked. Additionally, `43_FILTER_SYSTEM_SPECIFICATION.md` requires Discover and Library filters to query by Genre, which SQLite cannot efficiently do if Genres are stored in a JSON column. Finally, a contradiction was identified in the `status` enum values between `08_LIBRARY.md` (5 values) and `43_FILTER_SYSTEM_SPECIFICATION.md` (6 values, including "Planning").
+
+**Decision**
+
+1. Metadata (Synopsis, Genres, Tags, Characters, Alternative Titles) and Personal Notes are attached to `title_id`, not `format_id`.
+2. Genres, Tags, and Characters are stored in normalized junction tables (`genres`, `title_genres`, etc.) rather than as JSON columns in the `metadata` table.
+3. The Format `status` enum is locked to exactly 5 values: `Reading`, `Watching`, `Completed`, `Paused`, `Dropped`.
+
+**Rationale**
+
+1. Attaching metadata and notes to Titles aligns with `12_SEARCH_SERIES.md`, where the Series Page layout displays Synopsis and Personal Notes once at the Series level rather than per Format Card.
+2. Normalized junction tables provide the necessary performance and queryability for the filtering system specified in `43_FILTER_SYSTEM_SPECIFICATION.md`.
+3. The "Planning" status in `43_FILTER_SYSTEM_SPECIFICATION.md` contradicts the Library's core scope rule ("Only Titles you have started appear in the Library") and is redundant with the "Plan to Watch / Read" built-in collection. Locking to 5 values resolves this contradiction correctly.
+
+**Consequences**
+
+- The database schema (Module 02) implements normalized junction tables and Title-level attachments for metadata and notes.
+- The `formats.status` column is strictly constrained to the 5 approved values.
+- As a routine documentation cleanup, `43_FILTER_SYSTEM_SPECIFICATION.md` should have "Planning" removed from its status filter list in a future housekeeping update. This does not block implementation.
+
+---
+
+## ADR-017 Personal Tags
+
+**Context**
+
+`43_FILTER_SYSTEM_SPECIFICATION.md` lists "Personal Tags" under the Personal
+filter category (Layer 1, user-owned) — separate and distinct from "Genre"
+under the Metadata category (Layer 2, provider-owned). The Module 02
+schema and its patch (`003_ARCHITECTURE_PATCH_metadata_publication.md`)
+built `tags` / `title_tags` to normalize provider-sourced Tags only, since
+that patch's stated purpose was making Discover/Library able to filter
+provider metadata efficiently. Nothing in the schema represents
+user-created Personal Tags, leaving a real gap between two documents that
+were never reconciled.
+
+**Decision**
+
+Add two new tables, distinct from `tags` / `title_tags`:
+
+- `personal_tags` (id, name)
+- `title_personal_tags` (title_id, personal_tag_id)
+
+Personal Tags are Layer 1. They are created, renamed, and deleted only by
+the user. Provider synchronization and the Import Engine never read or
+write these tables.
+
+**Alternatives Considered**
+
+- Add a source column (`PROVIDER` / `USER`) to the existing `tags` table
+instead of a second table. Rejected — every other Layer 1/Layer 2 split
+in this schema uses separate tables (`metadata` vs `notes`,
+`external_references` vs Progress Override), not a shared table with a
+discriminator column. A shared table means every future provider
+metadata refresh query must remember to filter by source, or it risks
+touching personal data — the exact failure mode `03_PRINCIPLES.md` and
+`45_SYNC_ENGINE_SPECIFICATION.md` exist to prevent. A separate table
+makes that mistake structurally impossible instead of relying on every
+future query remembering a `WHERE` clause.
+
+**Rationale**
+
+Consistent with the pattern already used throughout this schema: Layer 1
+and Layer 2 data are never stored in the same table, even when the data
+looks superficially similar (a "tag" is a tag either way, but ownership
+and sync behavior differ completely).
+
+**Consequences**
+
+- `43_FILTER_SYSTEM_SPECIFICATION.md`'s Personal Tags filter queries
+`title_personal_tags` directly, the same way its Genre filter queries
+`title_genres`.
+- Provider sync (`45_SYNC_ENGINE_SPECIFICATION.md`) and the Import Engine
+require no changes — they were never touching Personal Tags and
+continue not to.
+- Deleting a `personal_tag` is a destructive action affecting every Title
+using it; per `44_DIALOG_SYSTEM_SPECIFICATION.md`'s Confirmation Dialog
+pattern, this should require confirmation. This is a Design-layer
+follow-up, not a schema blocker — noted here so it isn't lost.
+
+---
+
+## ADR-018 Split-Tier Cache: Library Persistent / Discover In-Memory
+
+**Context**
+
+46_CACHE_SYSTEM_SPECIFICATION.md defines a single cache layer without specifying whether entries persist across application restarts. Module 05 planning surfaced this as a genuine gap — the roadmap calls it "Local Cache," which fits either an in-memory or a persistent implementation.
+
+Two existing decisions bear on this. ADR-002 commits GLIV to offline-first behavior. Separately, 45_SYNC_ENGINE_SPECIFICATION.md and BR-002 already draw a line between provider-backed Formats that belong to a Title in the user's Library (which have an `external_reference` and participate in ongoing synchronization) and provider data encountered only through Discover/Search (which does not belong to the Library and is never synchronized). A single uniform cache tier ignores a distinction the rest of the architecture already makes.
+
+**Decision**
+
+The Cache System is split into two tiers.
+
+**Library Tier (Persistent).** Applies to provider-backed Formats that belong to a Title in the user's Library. Stored in a new `cache_entries` table (see 32_DATABASE_SPECIFICATION.md patch). Survives application restarts.
+
+**Discover Tier (In-Memory).** Applies to search/browse results not yet added to the Library. Never written to disk. Fully cleared when the application closes.
+
+The caller (e.g., Import Engine or UI route controller) supplies the scope explicitly. Provider Manager simply forwards it to the Cache System without inferring or re-deciding it. The Cache System never infers scope by querying the database.
+
+**No promotion on Library entry.** When a Discover result is added to the Library through Import Review (BR-002), its in-memory entry is not copied into the persistent tier. The persistent entry is populated naturally by the first Sync Engine cycle for that Format.
+
+**Orphan grace period on Library removal.** When a Format is removed from the Library, its Library-tier `cache_entries` rows are not deleted immediately. Instead, `orphaned_at` is set to the removal time. If the same Format is added back to the Library before 7 days have passed, `orphaned_at` is cleared and the entry resumes normal behavior. If 7 days pass, the entry is permanently deleted by a startup cleanup routine.
+
+The orphan window never overrides normal freshness. An entry past its `expires_at` is treated as a miss and triggers a normal provider refetch when read, regardless of whether it is also within its 7-day orphan window. `orphaned_at` governs only whether the row still exists on disk, never whether it is considered fresh.
+
+**Alternatives Considered**
+
+- *Single persistent tier for everything.* Rejected — Discover/search results churn constantly and have no "belongs to the Library" boundary to bound growth; persisting them indefinitely bloats the database for data unlikely to be reused.
+- *Single in-memory tier for everything.* Rejected — this weakens the offline-first guarantee for data the user actually tracks: a full app restart would force re-fetching provider data for every Format already in the Library, which 45_SYNC_ENGINE_SPECIFICATION.md's design otherwise avoids.
+- *CacheService or Provider Manager infers scope via a database lookup instead of an explicit caller-supplied parameter.* Rejected — this adds a database round-trip to every cache read/write. The caller already knows the context of the operation it's performing.
+- *Delete Library-tier entries immediately on removal, no grace period.* Rejected — accidental removal, or removal/re-adding during routine library reorganization, would force an unnecessary provider refetch with no benefit.
+- *Promote a Discover entry into the persistent tier at the moment Import Review commits.* Rejected — this is migration logic for a case the Sync Engine already handles naturally on its next cycle; unnecessary complexity for this module's first release.
+
+**Rationale**
+
+This aligns cache persistence with a boundary the architecture already draws elsewhere (BR-002, BR-003, 45_SYNC_ENGINE_SPECIFICATION.md) rather than inventing a new one. It keeps the Cache System's contract simple — the caller states which tier applies — and avoids scope creep into promotion or migration logic that no Business Rule currently requires.
+
+**Consequences**
+
+- `cache_entries` (32_DATABASE_SPECIFICATION.md) stores Library-tier entries only, and gains a nullable `orphaned_at` field.
+- `CacheService.get` / `CacheService.set` require an explicit `scope: 'library' | 'discover'` parameter, supplied by the caller.
+- The Discover tier is a simple in-memory structure with no schema, no persistence, and no orphan tracking. It is fully cleared on process exit.
+- A startup cleanup routine deletes any `cache_entries` row whose `orphaned_at` is more than 7 days in the past.
+- Removing a Format from the Library sets `orphaned_at` on its cache_entries rows rather than deleting them; re-adding the same Format within 7 days clears `orphaned_at`.
+- Any future Diagnostics/Settings surface reporting cache size or status must account for two tiers, not one.
 
 ############################################################
 ## 18_DATABASE_SCHEMA.md
@@ -670,7 +872,7 @@ This schema has been superseded by **32_DATABASE_SPECIFICATION.md**, which intro
 ## 19_IMPORT_SYSTEM.md
 ############################################################
 
-# GLIV v2# GLIV v2
+# GLIV v2
 
 # 19_IMPORT_SYSTEM.md
 
@@ -764,7 +966,7 @@ Possible actions:
 - Never silently infer data.
 - Every import is reversible.
 - Confidence and Verification State are independent.
-- Manual confirmation always wins over provider suggestions..
+- Manual confirmation always wins over provider suggestions.
 
 ############################################################
 ## 20_PROVIDER_MANAGER.md
@@ -940,7 +1142,7 @@ If no suitable provider result exists, the user may:
 ## 32_DATABASE_SPECIFICATION.md
 ############################################################
 
-# # GLIV v2
+# GLIV v2
 
 # 32_DATABASE_SPECIFICATION.md
 
@@ -959,7 +1161,19 @@ All future database changes must be made here.
 
 - titles
 - formats
+- publication_info
+- official_platforms
+- scanlation_groups
 - metadata
+- genres
+- title_genres
+- tags
+- title_tags
+- personal_tags
+- title_personal_tags
+- characters
+- title_characters
+- alternative_titles
 - contributors
 - format_contributors
 - connections
@@ -970,6 +1184,7 @@ All future database changes must be made here.
 - providers
 - sync_history
 - edit_history
+- cache_entries
 
 ---
 
@@ -1026,17 +1241,117 @@ Once assigned, the value is immutable and is never modified by provider synchron
 
 ---
 
+## publication_info
+
+One row per provider-backed Format.
+
+Fields:
+- format_id (FK → formats, unique — one-to-one)
+- publication_status
+- start_date
+- end_date
+- chapter_count
+- episode_count
+- volume_count
+- latest_official_release
+- latest_scanlation_release
+- official_publisher
+- license_status
+
+Layer: Publication (Layer 3), refreshable, never overwrites personal data.
+
+---
+
+## official_platforms
+
+Many rows per Format — a Format may be available on more than one official platform.
+
+Fields:
+- id
+- format_id (FK → formats)
+- platform_name
+
+Layer: Publication.
+
+---
+
+## scanlation_groups
+
+Many rows per Format.
+
+Fields:
+- id
+- format_id (FK → formats)
+- group_name
+- latest_release
+- release_date
+- translation_status
+- active_status
+
+Layer: Live (Layer 3). Informational only, never affects personal progress.
+
+---
+
 ## metadata
 
-Refreshable provider metadata.
+One row per Title. Refreshable provider metadata.
 
-Examples:
+Fields:
+- title_id (FK → titles, unique — one-to-one)
+- synopsis
 
-- Synopsis
-- Genres
-- Tags
-- Characters
-- Alternative Titles
+Genres, Tags, Characters, and Alternative Titles are normalized into their own
+tables (below) rather than stored as columns here, so Discover/Library filters
+can query them directly.
+
+---
+
+## genres / title_genres
+
+genres: id, name
+title_genres: title_id (FK), genre_id (FK) — many-to-many
+
+---
+
+## tags / title_tags
+
+tags: id, name
+title_tags: title_id (FK), tag_id (FK) — many-to-many
+
+---
+
+## personal_tags / title_personal_tags
+
+User-created tags, entirely distinct from provider-sourced tags.
+
+personal_tags:
+id, name (UNIQUE)
+
+title_personal_tags:
+title_id (FK → titles)
+personal_tag_id (FK → personal_tags)
+UNIQUE(title_id, personal_tag_id)
+
+Layer: Personal (Layer 1).
+personal_tags are created, renamed, and deleted only through explicit user
+action. Provider synchronization and the Import Engine never read from or
+write to personal_tags or title_personal_tags.
+A personal_tag may be attached to multiple Titles. Deleting a personal_tag
+detaches it from every Title that used it; it does not delete the Titles
+themselves.
+
+---
+
+## characters / title_characters
+
+characters: id, name
+title_characters: title_id (FK), character_id (FK) — many-to-many
+
+---
+
+## alternative_titles
+
+id, title_id (FK), alt_title — one-to-many
 
 ---
 
@@ -1119,9 +1434,12 @@ Many-to-many relationship between Titles and Collections.
 
 ## notes
 
-Personal notes.
+Fields:
+- title_id (FK → titles)
+- content
 
-Layer 1 only.
+Personal Notes are attached to the Title, not the Format — matching
+12_SEARCH_SERIES.md, where Personal Notes appear once per Series Page.
 
 ---
 
@@ -1195,6 +1513,35 @@ Examples:
 - Rating changes
 - Collection changes
 - Notes changes
+
+---
+
+## cache_entries
+
+Stores persistent cache entries for the **Library tier** only — provider-backed Formats belonging to a Title currently in the user's Library. Discover/search results are cached in-memory only (see 46_CACHE_SYSTEM_SPECIFICATION.md) and never appear in this table.
+
+Fields:
+
+- key
+- provider_id
+- provider_entity_id
+- capability
+- payload
+- cached_at
+- expires_at
+- orphaned_at
+
+`key` is a unique identifier composed from `provider_id` + `capability` + `provider_entity_id`.
+
+`payload` stores the cached provider-sourced value only. Layer 1 personal data is never stored here.
+
+`expires_at` governs normal freshness. An entry past `expires_at` is treated as a miss and triggers a fresh provider fetch, regardless of `orphaned_at`.
+
+`orphaned_at` is set when the owning Format is removed from the Library, and cleared if the Format is added back to the Library before 7 days have passed. Entries with `orphaned_at` older than 7 days are deleted automatically on application startup.
+
+`orphaned_at` never affects freshness — it governs only whether the row still exists.
+
+Manual Formats never have `cache_entries` rows, at either tier.
 
 ---
 
@@ -1363,6 +1710,28 @@ Cache is an optimization layer and never becomes the source of truth.
 
 ---
 
+## Cache Tiers (ADR-016)
+
+The Cache System operates in two tiers.
+
+### Library Tier (Persistent)
+
+Applies to provider-backed Formats belonging to a Title currently in the user's Library — that is, Formats with an `external_reference` per BR-002.
+
+Stored in the `cache_entries` table (see 32_DATABASE_SPECIFICATION.md). Survives application restarts.
+
+### Discover Tier (In-Memory)
+
+Applies to search/browse results not yet added to the Library.
+
+Never persisted to disk. Fully cleared when the application closes.
+
+### Scope Selection
+
+The Provider Manager determines which tier applies to each request and passes it explicitly (`scope: 'library' | 'discover'`). The Cache System never infers the tier through a database lookup.
+
+---
+
 ## Cached Information
 
 Examples include:
@@ -1399,6 +1768,7 @@ Application
 - Expired cache entries are refreshed automatically.
 - Cache never overwrites personal data.
 - Manual Titles do not participate in provider caching.
+- Discover-tier entries are never persisted and do not participate in orphan retention.
 
 ---
 
@@ -1410,6 +1780,18 @@ Cache entries may be refreshed when:
 - A manual refresh is requested.
 - Provider data changes.
 - Cache is cleared by the user.
+
+---
+
+## Orphaned Entries (ADR-016)
+
+When a Format is removed from the Library, its Library-tier cache entries are not deleted immediately.
+
+Entries are marked orphaned and retained for 7 days, allowing the same Format to reuse its cached data if it is added back to the Library within that window.
+
+After 7 days, orphaned entries are permanently deleted by a startup cleanup routine.
+
+Orphan status never overrides normal expiration. An entry past its `expires_at` is still treated as a miss, even while it is within its 7-day orphan window.
 
 ---
 
@@ -1712,7 +2094,7 @@ Manual Titles do not contain Scanlation Group information.
 ## 64_PROGRESS_MODEL.md
 ############################################################
 
-# # GLIV v2
+# GLIV v2
 
 # 64_PROGRESS_MODEL.md
 
@@ -1847,3 +2229,4 @@ Synchronization never modifies:
 - Every Format maintains independent progress.
 - Effective Latest is computed from provider information and Progress Override.
 - Manual Titles remain completely independent of provider progress.
+

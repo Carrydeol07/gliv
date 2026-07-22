@@ -1,8 +1,9 @@
 import { DatabaseService } from '../../database/DatabaseService';
 import { CommitPayload, ImportReviewAction } from './types';
+import { CacheService } from '../cache/CacheService';
 
 export class Committer {
-  constructor(private dbService: DatabaseService) {}
+  constructor(private dbService: DatabaseService, private cacheService: CacheService) {}
 
   public async commit(payload: CommitPayload): Promise<void> {
     const db = this.dbService.getDb();
@@ -85,6 +86,8 @@ export class Committer {
                SET provider_id = ?, provider_entity_id = ?, confidence = ?, verification_state = ?, last_verified = CURRENT_TIMESTAMP
                WHERE format_id = ?
              `).run(providerRef.providerId, providerRef.providerEntityId, providerRef.confidence, 'USER_CONFIRMED', formatId);
+             
+             this.cacheService.clearOrphaned(providerRef.providerId, providerRef.providerEntityId);
           } else {
              // Just update state to confirmed
              db.prepare(`
@@ -92,6 +95,8 @@ export class Committer {
                SET verification_state = 'USER_CONFIRMED', confidence = ?, last_verified = CURRENT_TIMESTAMP
                WHERE format_id = ? AND provider_id = ?
              `).run(providerRef.confidence, formatId, providerRef.providerId);
+             
+             this.cacheService.clearOrphaned(providerRef.providerId, providerRef.providerEntityId);
           }
         } else {
           // Insert new external reference
@@ -99,6 +104,8 @@ export class Committer {
             INSERT INTO external_references (format_id, provider_id, provider_entity_id, confidence, verification_state)
             VALUES (?, ?, ?, ?, ?)
           `).run(formatId, providerRef.providerId, providerRef.providerEntityId, providerRef.confidence, 'USER_CONFIRMED');
+          
+          this.cacheService.clearOrphaned(providerRef.providerId, providerRef.providerEntityId);
         }
       }
     } else {
@@ -117,6 +124,8 @@ export class Committer {
           INSERT INTO external_references (format_id, provider_id, provider_entity_id, confidence, verification_state)
           VALUES (?, ?, ?, ?, ?)
         `).run(formatId, providerRef.providerId, providerRef.providerEntityId, providerRef.confidence, 'USER_CONFIRMED');
+        
+        this.cacheService.clearOrphaned(providerRef.providerId, providerRef.providerEntityId);
       }
     }
   }
@@ -147,6 +156,8 @@ export class Committer {
         INSERT INTO external_references (format_id, provider_id, provider_entity_id, confidence, verification_state)
         VALUES (?, ?, ?, ?, ?)
       `).run(formatId, providerRef.providerId, providerRef.providerEntityId, providerRef.confidence, 'USER_CONFIRMED');
+      
+      this.cacheService.clearOrphaned(providerRef.providerId, providerRef.providerEntityId);
     }
 
     // Also add to alternative titles

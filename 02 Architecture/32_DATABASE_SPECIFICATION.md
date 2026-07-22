@@ -40,6 +40,7 @@ All future database changes must be made here.
 - providers
 - sync_history
 - edit_history
+- cache_entries
 
 ---
 
@@ -368,6 +369,35 @@ Examples:
 - Rating changes
 - Collection changes
 - Notes changes
+
+---
+
+## cache_entries
+
+Stores persistent cache entries for the **Library tier** only — provider-backed Formats belonging to a Title currently in the user's Library. Discover/search results are cached in-memory only (see 46_CACHE_SYSTEM_SPECIFICATION.md) and never appear in this table.
+
+Fields:
+
+- key
+- provider_id
+- provider_entity_id
+- capability
+- payload
+- cached_at
+- expires_at
+- orphaned_at
+
+`key` is a unique identifier composed from `provider_id` + `capability` + `provider_entity_id`.
+
+`payload` stores the cached provider-sourced value only. Layer 1 personal data is never stored here.
+
+`expires_at` governs normal freshness. An entry past `expires_at` is treated as a miss and triggers a fresh provider fetch, regardless of `orphaned_at`.
+
+`orphaned_at` is set when the owning Format is removed from the Library, and cleared if the Format is added back to the Library before 7 days have passed. Entries with `orphaned_at` older than 7 days are deleted automatically on application startup.
+
+`orphaned_at` never affects freshness — it governs only whether the row still exists.
+
+Manual Formats never have `cache_entries` rows, at either tier.
 
 ---
 

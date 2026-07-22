@@ -1,6 +1,6 @@
 import { DatabaseService } from '../database/DatabaseService';
 import { CapabilityRouter } from './CapabilityRouter';
-import { CacheStub } from './CacheStub';
+import { CacheService, SplitTierCacheService, CacheScope } from './cache/CacheService';
 import { ProviderUrlGenerator } from './ProviderUrlGenerator';
 import { RetryHandler } from './RetryHandler';
 import { ProviderClient } from '../providers/ProviderClient';
@@ -18,16 +18,17 @@ import { JikanClient } from '../providers/JikanClient';
 import { MangaUpdatesClient } from '../providers/MangaUpdatesClient';
 
 export class ProviderManager {
-  private cache = new CacheStub();
+  private cache: CacheService;
   private clients: Map<ProviderId, ProviderClient> = new Map();
 
   constructor(private dbService: DatabaseService) {
+    this.cache = new SplitTierCacheService(dbService);
     this.clients.set(ProviderId.ANILIST, new AniListClient());
     this.clients.set(ProviderId.JIKAN, new JikanClient());
     this.clients.set(ProviderId.MANGAUPDATES, new MangaUpdatesClient());
   }
 
-  public async search(query: string, mediaType: MediaType): Promise<NormalizedSearchResult[]> {
+  public async search(query: string, mediaType: MediaType, scope: CacheScope): Promise<NormalizedSearchResult[]> {
     const route = CapabilityRouter.getRoute(Capability.SEARCH, mediaType);
     
     let primaryResults: ProviderSearchResult[] = [];
@@ -56,9 +57,10 @@ export class ProviderManager {
 
       if (primaryResult.status === 'fulfilled') {
         primaryResults = primaryResult.value as ProviderSearchResult[];
+        this.cache.set(`search:${mediaType}:${query}`, primaryResults, 3600000, scope, route.primary, '', Capability.SEARCH);
       } else {
         this.logSyncHistory(route.primary, 'FAILED', 0);
-        const cached = this.cache.get<ProviderSearchResult[]>(`search:${mediaType}:${query}`);
+        const cached = this.cache.get<ProviderSearchResult[]>(`search:${mediaType}:${query}`, scope);
         if (cached) primaryResults = cached;
       }
 
@@ -74,9 +76,10 @@ export class ProviderManager {
           const start = Date.now();
           primaryResults = await RetryHandler.withRetry(() => primaryClient.search(query, mediaType));
           this.logSyncHistory(route.primary, 'SUCCESS', Date.now() - start);
+          this.cache.set(`search:${mediaType}:${query}`, primaryResults, 3600000, scope, route.primary, '', Capability.SEARCH);
         } catch (error) {
           this.logSyncHistory(route.primary, 'FAILED', 0);
-          const cached = this.cache.get<ProviderSearchResult[]>(`search:${mediaType}:${query}`);
+          const cached = this.cache.get<ProviderSearchResult[]>(`search:${mediaType}:${query}`, scope);
           if (cached) primaryResults = cached;
         }
       }
@@ -140,7 +143,7 @@ export class ProviderManager {
     return normalized;
   }
 
-  public async getMetadata(providerId: ProviderId, entityId: string): Promise<ProviderMetadata | null> {
+  public async getMetadata(providerId: ProviderId, entityId: string, scope: CacheScope): Promise<ProviderMetadata | null> {
     const client = this.clients.get(providerId);
     if (!client) return null;
 
@@ -150,12 +153,12 @@ export class ProviderManager {
       this.logSyncHistory(providerId, 'SUCCESS', Date.now() - start);
       
       if (metadata) {
-        this.cache.set(`meta:${providerId}:${entityId}`, metadata);
+        this.cache.set(`meta:${providerId}:${entityId}`, metadata, 86400000, scope, providerId, entityId, Capability.METADATA);
       }
       return metadata;
     } catch (error) {
       this.logSyncHistory(providerId, 'FAILED', 0);
-      return this.cache.get<ProviderMetadata>(`meta:${providerId}:${entityId}`);
+      return this.cache.get<ProviderMetadata>(`meta:${providerId}:${entityId}`, scope);
     }
   }
 

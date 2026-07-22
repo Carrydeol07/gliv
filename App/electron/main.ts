@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { setupIpcHandlers } from './ipc';
 import { DatabaseService } from '../src/database/DatabaseService';
+import { StartupCleanup } from '../src/services/cache/StartupCleanup';
 
 let mainWindow: BrowserWindow | null = null;
 const dbService = new DatabaseService();
@@ -37,6 +38,9 @@ function createWindow() {
 app.whenReady().then(() => {
   // Initialize Database Service (open/create database, run migrations)
   dbService.initialize();
+
+  // Run startup cleanup routines
+  StartupCleanup.run(dbService);
 
   // Set up IPC handlers
   setupIpcHandlers(dbService);

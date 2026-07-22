@@ -3,14 +3,15 @@ import { NormalizedSearchResult } from '../../models/provider.types';
 import { Matcher } from './Matcher';
 import { Committer } from './Committer';
 import { ImportCandidate, ImportReviewAction, CommitPayload } from './types';
+import { CacheService } from '../cache/CacheService';
 
 export class ImportEngine {
   private matcher: Matcher;
   private committer: Committer;
 
-  constructor(private dbService: DatabaseService) {
+  constructor(private dbService: DatabaseService, private cacheService: CacheService) {
     this.matcher = new Matcher(dbService);
-    this.committer = new Committer(dbService);
+    this.committer = new Committer(dbService, cacheService);
   }
 
   public async processSearchImport(importedData: NormalizedSearchResult): Promise<ImportCandidate | null> {

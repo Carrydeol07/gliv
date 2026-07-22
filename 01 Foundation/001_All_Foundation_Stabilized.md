@@ -252,7 +252,7 @@ GLIV succeeds when it permanently replaces the user's DOCX workflow while remain
 ## 04_DOMAIN_MODEL.md
 ############################################################
 
-# # GLIV v2
+# GLIV v2
 
 # 04_DOMAIN_MODEL.md
 
@@ -376,3 +376,4 @@ Manual Titles maintain progress manually and do not support:
 - Provider synchronization
 
 Detailed progress behavior is defined in the Progress Model and Business Rules.
+

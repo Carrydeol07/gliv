@@ -13,6 +13,28 @@ Cache is an optimization layer and never becomes the source of truth.
 
 ---
 
+## Cache Tiers (ADR-016)
+
+The Cache System operates in two tiers.
+
+### Library Tier (Persistent)
+
+Applies to provider-backed Formats belonging to a Title currently in the user's Library — that is, Formats with an `external_reference` per BR-002.
+
+Stored in the `cache_entries` table (see 32_DATABASE_SPECIFICATION.md). Survives application restarts.
+
+### Discover Tier (In-Memory)
+
+Applies to search/browse results not yet added to the Library.
+
+Never persisted to disk. Fully cleared when the application closes.
+
+### Scope Selection
+
+The Provider Manager determines which tier applies to each request and passes it explicitly (`scope: 'library' | 'discover'`). The Cache System never infers the tier through a database lookup.
+
+---
+
 ## Cached Information
 
 Examples include:
@@ -49,6 +71,7 @@ Application
 - Expired cache entries are refreshed automatically.
 - Cache never overwrites personal data.
 - Manual Titles do not participate in provider caching.
+- Discover-tier entries are never persisted and do not participate in orphan retention.
 
 ---
 
@@ -60,6 +83,18 @@ Cache entries may be refreshed when:
 - A manual refresh is requested.
 - Provider data changes.
 - Cache is cleared by the user.
+
+---
+
+## Orphaned Entries (ADR-016)
+
+When a Format is removed from the Library, its Library-tier cache entries are not deleted immediately.
+
+Entries are marked orphaned and retained for 7 days, allowing the same Format to reuse its cached data if it is added back to the Library within that window.
+
+After 7 days, orphaned entries are permanently deleted by a startup cleanup routine.
+
+Orphan status never overrides normal expiration. An entry past its `expires_at` is still treated as a miss, even while it is within its 7-day orphan window.
 
 ---
 

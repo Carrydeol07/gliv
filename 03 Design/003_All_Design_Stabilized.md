@@ -1,17 +1,6 @@
-# GLIV v2
-
-# 003_All_Design.md
-
-> Version: 2.0
-> Status: Locked Design
-
-
-
-######################################################################
-
+############################################################
 ## 08_LIBRARY.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -91,12 +80,9 @@ Series --> Library
 - Fast editing should require no more than two clicks.
 - Library displays personal data alongside provider-enriched information without allowing provider data to overwrite personal data.
 
-
-######################################################################
-
+############################################################
 ## 09_COLLECTIONS.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -178,12 +164,9 @@ Series --> Collection
 - Collection order is user-controlled.
 - Removing a Title from a Collection never removes it from the Library.
 
-
-######################################################################
-
+############################################################
 ## 10_DISCOVER.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -319,12 +302,9 @@ ManualTitle --> Library
 - Users always review provider-backed additions before they enter the Library.
 - Manual Titles are only created when no suitable provider-backed result exists.
 
-
-######################################################################
-
+############################################################
 ## 11_UPDATES.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -432,12 +412,9 @@ Series --> Updates
 - Dismissing an update never affects provider data.
 - Manual Titles do not receive update notifications.
 
-
-######################################################################
-
+############################################################
 ## 12_SEARCH_SERIES.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -679,14 +656,11 @@ Connections --> Series
 - Availability is a Series Page capability and not a navigation destination.
 - Contributor pages replace Same Author and Same Artist connections.
 
-
-######################################################################
-
+############################################################
 ## 13_COMPONENT_MODEL.md
+############################################################
 
-######################################################################
-
-# # GLIV v2
+# GLIV v2
 
 # 13_COMPONENT_MODEL.md
 
@@ -859,12 +833,9 @@ Explains that the following features are unavailable:
 - Personal data components never depend on provider data.
 - Provider-backed and Manual Title components remain visually consistent where possible.
 
-
-######################################################################
-
+############################################################
 ## 14_NAVIGATION.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -915,12 +886,9 @@ Contributor pages display the series associated with the selected Contributor.
 - Secondary pages never appear in the primary sidebar.
 - Availability is a Series Page capability rather than a navigation destination.
 
-
-######################################################################
-
+############################################################
 ## 15_WIREFRAMES.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -1207,12 +1175,9 @@ Other Titles
 - Availability appears only for provider-backed Titles.
 - Contributors replace separate Author and Artist pages while remaining grouped by role.
 
-
-######################################################################
-
+############################################################
 ## 22_UI_DESIGN_SYSTEM.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -1354,12 +1319,9 @@ Layouts should gracefully adapt to different desktop window sizes without changi
 - Provider-backed information should remain clearly distinguishable from personal data.
 - Components should remain visually consistent throughout the application.
 
-
-######################################################################
-
+############################################################
 ## 43_FILTER_SYSTEM_SPECIFICATION.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -1473,12 +1435,9 @@ Users may search first, filter first, or combine both.
 - Personal filters operate on Layer 1 data.
 - Provider-backed filters operate on provider-managed information.
 
-
-######################################################################
-
+############################################################
 ## 44_DIALOG_SYSTEM_SPECIFICATION.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -1635,12 +1594,9 @@ Actions should always provide a clear recovery path when possible.
 - Personal data changes are always initiated by the user.
 - Dialogs should preserve the user's context whenever possible.
 
-
-######################################################################
-
+############################################################
 ## 50_KEYBOARD_SHORTCUTS.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -1711,12 +1667,9 @@ All shortcuts should remain consistent, discoverable, and optional.
 - Shortcuts should remain consistent throughout the application.
 - Destructive actions should always require confirmation.
 
-
-######################################################################
-
+############################################################
 ## 51_ANIMATION_GUIDELINES.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -1823,12 +1776,9 @@ When reduced motion is enabled, non-essential animations should be disabled.
 - Consistency is more important than visual complexity.
 - Accessibility always takes priority over animation.
 
-
-######################################################################
-
+############################################################
 ## 52_EMPTY_STATES.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -1959,12 +1909,9 @@ Actions:
 - Empty states should never feel like errors.
 - Personal data remains accessible even when provider information is unavailable.
 
-
-######################################################################
-
+############################################################
 ## 53_ERROR_HANDLING.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -2083,12 +2030,9 @@ Validation should identify the affected field whenever possible.
 - Provider failures should never block access to personal data.
 - Error messages should be clear, concise, and actionable.
 
-
-######################################################################
-
+############################################################
 ## 54_ACCESSIBILITY.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -2196,12 +2140,9 @@ Errors should never rely solely on color to communicate meaning.
 - Readability always takes priority over decoration.
 - Accessibility improvements should never reduce functionality.
 
-
-######################################################################
-
+############################################################
 ## 62_DISCOVER_FILTERS.md
-
-######################################################################
+############################################################
 
 # GLIV v2
 
@@ -2291,3 +2232,4 @@ Changing filters never modifies personal library data.
 - Active filters remain visible.
 - Users can clear all filters with a single action.
 - Provider routing remains transparent to the user.
+
