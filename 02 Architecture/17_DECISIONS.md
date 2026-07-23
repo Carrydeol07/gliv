@@ -487,3 +487,38 @@ This aligns cache persistence with a boundary the architecture already draws els
 - A startup cleanup routine deletes any `cache_entries` row whose `orphaned_at` is more than 7 days in the past.
 - Removing a Format from the Library sets `orphaned_at` on its cache_entries rows rather than deleting them; re-adding the same Format within 7 days clears `orphaned_at`.
 - Any future Diagnostics/Settings surface reporting cache size or status must account for two tiers, not one.
+
+---
+
+## ADR-019 Planned Titles Storage Model
+
+**Context**
+`09_COLLECTIONS.md` lists Plan to Watch/Read as a built-in Collection. `GLIV_PROJECT_SUMMARY.md` describes collection membership as if the Title already exists in the Library. But `08_LIBRARY.md` restricts the Library to started Titles only, and ADR-016 already rejected a "Planning" status for exactly that reason. No document ever defined what data structure a Plan to Watch/Read entry actually is. This has a real practical cost: 01_VISION.md's own stated Problem — duplicate entries in the original DOCX library — reappears inside GLIV if Search can't recognize "I already planned this," the same way it recognizes "I already own this."
+
+**Decision**
+Add `planned_titles`, separate from `titles`/`formats`:
+```
+planned_titles
+id
+display_title
+media_type
+provider_id        (nullable)
+provider_entity_id (nullable)
+added_at
+```
+- Created only through the Plan to Watch/Read collection — no separate nav destination.
+- `provider_id`/`provider_entity_id` nullable: a planned entry may reference a provider result or be freeform, the same way Manual Titles handle "no provider" for real Library entries.
+- Never becomes a Format. No status, no progress, no Effective Latest — it exists only to record intent and support duplicate detection.
+- Universal Search checks `planned_titles` alongside `titles`/`formats` when flagging "already known" — distinctly, e.g. `libraryState: 'ALREADY_PLANNED'` vs `'IN_LIBRARY'`, so you can tell "I'm tracking this" from "I already meant to check this out."
+- **Graduating** a planned entry into a real Format (you actually start it) goes through the normal Search/Import flow; the `planned_titles` row is deleted once the real `titles`/`formats` row exists. Exact UI for that is a future Collections module's job.
+- The default Library screen is unchanged — started Titles only. Plan to Watch/Read lives in the Collections tab, using the sorting/filtering already specified in `27_COLLECTIONS_SPECIFICATION.md`.
+
+**Alternatives Considered**
+- *Reintroduce "Planning" as a status.* Rejected — reopens exactly what ADR-016 closed.
+- *Relax `collection_items`' `title_id` requirement instead of a new table.* Rejected — turns every future query against `collection_items` into a "which kind of row did I get" check.
+- *Leave it undefined until a Collections module exists.* Rejected — Search needs to know what "already known" means now, or it ships with the same duplicate-entry bug GLIV exists to fix.
+
+**Consequences**
+- `32_DATABASE_SPECIFICATION.md` needs a `planned_titles` patch, same pattern as ADR-018's `cache_entries` patch.
+- Module 06 can't fully solve duplicate detection until this table exists — see below.
+- A future Collections module owns creating/removing `planned_titles` rows and the graduation workflow.

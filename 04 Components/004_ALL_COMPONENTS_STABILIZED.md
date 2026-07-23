@@ -299,6 +299,7 @@ Everything else is secondary.
 
 > Version: 2.0
 > Status: Locked Component
+> **Amendment (v2.1):** Universal Search ranking now prioritizes Provider Manager results over Personal Library matches. Discover exists to help the user find titles they don't yet have — surfacing already-owned titles first worked against that. Library matches are still returned and clearly marked, just ranked after provider results. This applies only to Universal Search (`scope: 'discover'`); Library's own in-app search (`26_LIBRARY_SPECIFICATION.md`) is local-only and unaffected.
 
 ---
 
@@ -323,7 +324,7 @@ The Search System should answer most questions without requiring users to visit 
 
 1. Fast enough to feel instant.
 2. One search interface across every supported media type.
-3. Personal Library always takes priority.
+3. Provider results are prioritized in Discover; the Library tab is the path back to titles already tracked.
 4. Rich results before navigation.
 5. Provider routing remains invisible to the user.
 6. Never hide useful information behind unnecessary clicks.
@@ -332,10 +333,13 @@ The Search System should answer most questions without requiring users to visit 
 
 # Search Sources
 
-Search order:
+Search order (Universal Search / Discover):
+1. Provider Manager
+2. Personal Library
 
-1. Personal Library
-2. Provider Manager
+Provider-backed results are prioritized because Discover exists to surface
+titles the user doesn't yet have. Personal Library matches are still
+returned, marked as already-owned, but ranked below provider results.
 
 Provider Manager automatically routes requests to the appropriate provider based on media type.
 
@@ -403,15 +407,14 @@ If no suitable provider-backed Title exists:
 
 # Search Ranking
 
-Results are ordered by:
+Provider results are ordered by:
+1. Exact Match
+2. Alternative Titles
+3. Native Titles
+4. Contributor Match
 
-1. Exact Library Match
-2. Exact Provider Match
-3. Alternative Titles
-4. Native Titles
-5. Contributor Match
-
-Library results always appear before provider results.
+Personal Library matches follow the same four-tier ordering internally,
+but are appended after all provider results rather than appearing first.
 
 ---
 
@@ -517,7 +520,7 @@ without requiring a mouse.
 
 - Search never modifies personal data automatically.
 - Provider routing remains transparent to the user.
-- Personal Library always receives priority.
+- Provider results are prioritized in Discover; the Library tab is the path back to titles already tracked.
 - Manual Titles are offered only when no suitable provider-backed Title exists.
 
 ---
@@ -527,7 +530,7 @@ without requiring a mouse.
 The component is complete when:
 
 - Users can identify Titles quickly.
-- Library results always appear first.
+- Provider results rank above Library matches in Discover, while Library matches remain clearly flagged.
 - Provider routing is invisible to the user.
 - Manual Title creation integrates naturally into the search workflow.
 - Search remains responsive across all supported media types.

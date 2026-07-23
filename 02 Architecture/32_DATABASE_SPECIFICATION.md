@@ -35,6 +35,7 @@ All future database changes must be made here.
 - connections
 - collections
 - collection_items
+- planned_titles
 - notes
 - external_references
 - providers
@@ -278,6 +279,8 @@ Includes built-in collections:
 - Favorites
 - Plan to Watch / Read
 
+Plan to Watch / Read is backed by `planned_titles`, not `collection_items` — its members are not `titles` rows (see `planned_titles`, ADR-019). All other collections, including custom ones, continue to use `collection_items` against real `titles` rows as before.
+
 Supports unlimited custom collections.
 
 ---
@@ -285,6 +288,31 @@ Supports unlimited custom collections.
 ## collection_items
 
 Many-to-many relationship between Titles and Collections.
+
+---
+
+## planned_titles
+
+Stores Plan to Watch / Read entries — Titles the user intends to start but has not yet begun.
+
+Deliberately separate from `titles` / `formats`. Per 08_LIBRARY.md, the Library contains only Titles the user has started; a planned entry has no Format, no progress, no status, and must never be forced into that model just to support collection membership (see ADR-019).
+
+Fields:
+
+- id
+- display_title
+- media_type
+- provider_id (nullable, FK → providers)
+- provider_entity_id (nullable)
+- added_at
+
+`provider_id` / `provider_entity_id` are nullable: a planned entry may reference a specific provider result (found via Search) or be entered freeform with no provider match, mirroring how Manual Titles handle "no provider" for real Library entries.
+
+Layer: Personal (Layer 1). Provider synchronization never reads or writes this table.
+
+A `planned_titles` row is deleted once the user actually starts the Title — at that point a normal `titles` / `formats` row is created through the standard Search / Import flow, and the planned entry no longer serves a purpose. This graduation workflow belongs to a future Collections module.
+
+Universal Search checks `planned_titles` alongside `titles` / `formats` so a search result can be flagged `ALREADY_PLANNED`, distinct from `IN_LIBRARY` — letting the user tell "I already meant to check this out" from "I'm already tracking this," which is the entire reason this table exists (see ADR-019, Context).
 
 ---
 
