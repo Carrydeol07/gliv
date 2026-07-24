@@ -56,6 +56,18 @@ Layer:
 - Personal
 - Metadata
 
+Fields:
+
+- rating (nullable, decimal, range 1.0–10.0 in 0.5 increments — see ADR-020)
+- favorite (boolean, not null, default false)
+- original_order (integer, unique, not null, immutable once assigned)
+
+`rating` and `favorite` are Layer 1 Personal Data. Provider synchronization never reads or writes either field.
+
+`original_order` records the sequence in which the user started the Title — not the timestamp the row was inserted into the database, and not which entry point created it (DOCX import, Search, Discover, Manual Title creation are all treated identically). It is assigned exactly once, at the moment the Title is considered started, and is immutable afterward per 08_LIBRARY.md ("Original Order is immutable").
+
+For Titles brought in through the legacy DOCX import, `original_order` preserves the historical sequence from that document. For any Title created afterward through any entry point, `original_order` is assigned as one greater than the current maximum value across all Titles — starting something today is always later than everything already started, regardless of how it entered the Library.
+
 ---
 
 ## formats

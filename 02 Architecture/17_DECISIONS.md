@@ -522,3 +522,40 @@ added_at
 - `32_DATABASE_SPECIFICATION.md` needs a `planned_titles` patch, same pattern as ADR-018's `cache_entries` patch.
 - Module 06 can't fully solve duplicate detection until this table exists — see below.
 - A future Collections module owns creating/removing `planned_titles` rows and the graduation workflow.
+
+---
+
+## ADR-020 Personal Display & Ordering Fields (Rating, Favorite, Original Order)
+
+**Context**
+
+01_VISION.md, 04_DOMAIN_MODEL.md, 08_LIBRARY.md, 12_SEARCH_SERIES.md, 22_UI_DESIGN_SYSTEM.md, 25_SERIES_PAGE_SPECIFICATION.md, 23_SERIES_CARD_SPECIFICATION.md, and 26_LIBRARY_SPECIFICATION.md all reference Rating, Favorite, and Original Order as core, sortable, filterable Layer 1 personal fields — displayed on the Series Card and once in the Series Page header. 32_DATABASE_SPECIFICATION.md's Core Tables list and every table definition never assigned these three fields a home. Module 07 (Library) surfaced this while implementing sorting and filtering, the same way Module 04 surfaced the BR-003 Edit History gap and Module 06 surfaced the search ranking gap.
+
+**Decision**
+
+Add three fields to `titles`:
+
+- `rating` (nullable, decimal, 1.0–10.0 in 0.5 increments)
+- `favorite` (boolean, default false)
+- `original_order` (integer, unique, not null)
+
+Attached to `titles`, not `formats` — consistent with ADR-016's placement of `notes` at the Title level. 12_SEARCH_SERIES.md and 25_SERIES_PAGE_SPECIFICATION.md both display Favorite and Rating once in the Series header, never once per Format Card, unlike Progress, which is genuinely per-Format.
+
+`original_order` reflects when the user started the Title, independent of import entry point. Legacy DOCX import preserves the historical sequence from the original document. Any Title added afterward — via Search Import, Discover, or Manual Title creation — receives an `original_order` value greater than every existing value, since starting something today is definitionally later than everything already started. The field is set once and never reassigned.
+
+**Alternatives Considered**
+
+- A separate join table (the `personal_tags` pattern from ADR-017). Rejected — Personal Tags are many-to-many and reusable across Titles, which justified their own table. Rating, Favorite, and Original Order are strictly single-valued attributes of one Title; a join table would force a mandatory join into every Library query for values that always exist exactly once per Title.
+- Storing `original_order` as a timestamp instead of an integer sequence. Rejected — nothing in the documentation requires preserving actual calendar dates, only relative sequence. A plain incrementing integer is simpler to sort by and avoids timezone/precision edge cases.
+- Deriving "started order" from the earliest `edit_history` entry instead of a stored column. Rejected — 08_LIBRARY.md requires Original Order to be authoritative and immutable. Every other authoritative personal field in this schema (Notes, Personal Tags, Progress Override) is a stored column, not a value derived from history, which could theoretically be incomplete or pruned.
+
+**Rationale**
+
+This matches the schema's existing pattern of attaching single-valued personal attributes directly to the entity they describe, and resolves a real implementation blocker Module 07 could not proceed past without inventing undocumented behavior.
+
+**Consequences**
+
+- 32_DATABASE_SPECIFICATION.md's `titles` section gains the three fields (see Patch 1).
+- LibraryRepository's sort and filter logic can be implemented against real columns instead of assumed ones.
+- Every entry point that creates a new Title (Search Import, Manual Title creation, the future DOCX Import module) must supply the next `original_order` value. This is a shared responsibility across those modules, not something Module 07 alone can guarantee — flagged here so it isn't lost when those modules are planned.
+- The rating scale (1.0–10.0, 0.5 increments) has been confirmed as part of this ADR. No document elsewhere in the vault previously specified a scale; this ADR is now the authoritative source for it.
