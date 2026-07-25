@@ -1,5 +1,7 @@
 import React, { useState, MouseEvent } from 'react';
 import { LibraryTitleData, LibraryFormatData } from '../../services/library/types';
+import { RatingComponent } from '../RatingComponent';
+import { FavoriteToggle } from '../FavoriteToggle';
 import './SeriesCard.css';
 
 interface SeriesCardProps {
@@ -20,10 +22,10 @@ export const SeriesCard: React.FC<SeriesCardProps> = ({
   onEditRating,
   onToggleFavorite,
   onEditNotes,
-  onToggleCollection,
   onClick
 }) => {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
+  const [isEditingRating, setIsEditingRating] = useState(false);
 
   const handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
@@ -34,15 +36,7 @@ export const SeriesCard: React.FC<SeriesCardProps> = ({
     setContextMenu(null);
   };
 
-  const handleQuickAction = (e: MouseEvent, action: string, payload?: any) => {
-    e.stopPropagation();
-    if (action === 'favorite' && onToggleFavorite) {
-      onToggleFavorite(title.id);
-    }
-  };
-
   const renderFormatSummary = (format: LibraryFormatData) => {
-    const isCompleted = format.status === 'Completed';
     const hasTotal = format.effectiveLatest !== undefined;
     const progressText = hasTotal ? `${format.personalProgress} / ${format.effectiveLatest}` : `${format.personalProgress}`;
     
@@ -74,10 +68,11 @@ export const SeriesCard: React.FC<SeriesCardProps> = ({
             {title.rating !== null && <span className="indicator rating">{title.rating}</span>}
           </div>
 
-          <div className="series-card-hover-actions">
-            <button onClick={(e) => handleQuickAction(e, 'favorite')}>
-              {title.favorite ? 'Unfavorite' : 'Favorite'}
-            </button>
+          <div className="series-card-hover-actions" onClick={(e) => e.stopPropagation()}>
+            <FavoriteToggle 
+              favorite={title.favorite} 
+              onToggleFavorite={() => onToggleFavorite && onToggleFavorite(title.id)} 
+            />
           </div>
         </div>
         
@@ -114,12 +109,9 @@ export const SeriesCard: React.FC<SeriesCardProps> = ({
             }}>
               Edit Notes
             </div>
-            <div className="context-menu-item" onClick={() => {
-              const ratingStr = prompt('Edit Rating (1.0 - 10.0)', title.rating?.toString() || '');
-              if (ratingStr !== null) {
-                const r = parseFloat(ratingStr);
-                if (!isNaN(r)) onEditRating?.(title.id, r);
-              }
+            <div className="context-menu-item" onClick={(e) => {
+              e.stopPropagation();
+              setIsEditingRating(true);
               closeContextMenu();
             }}>
               Edit Rating
@@ -148,6 +140,21 @@ export const SeriesCard: React.FC<SeriesCardProps> = ({
                 </div>
               </React.Fragment>
             ))}
+          </div>
+        </div>
+      )}
+
+      {isEditingRating && (
+        <div className="context-menu-overlay" onClick={() => setIsEditingRating(false)}>
+          <div className="dialog-content" onClick={(e) => e.stopPropagation()}>
+            <RatingComponent 
+              rating={title.rating} 
+              onEditRating={(val) => {
+                onEditRating?.(title.id, val);
+                setIsEditingRating(false);
+              }}
+            />
+            <button onClick={() => setIsEditingRating(false)}>Close</button>
           </div>
         </div>
       )}

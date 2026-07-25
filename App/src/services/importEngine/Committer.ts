@@ -1,6 +1,7 @@
 import { DatabaseService } from '../../database/DatabaseService';
 import { CommitPayload, ImportReviewAction } from './types';
 import { CacheService } from '../cache/CacheService';
+import { ProgressService } from '../progress/ProgressService';
 
 export class Committer {
   constructor(private dbService: DatabaseService, private cacheService: CacheService) {}
@@ -65,19 +66,8 @@ export class Committer {
              // Provider reference changed!
              // BR-003: Auto-remove any existing Progress Override and log to edit_history
              if (format.progress_override !== null) {
-               db.prepare(`UPDATE formats SET progress_override = NULL WHERE id = ?`).run(formatId);
-               
-               db.prepare(`
-                 INSERT INTO edit_history (entity_type, entity_id, field, old_value, new_value, source)
-                 VALUES (?, ?, ?, ?, ?, ?)
-               `).run(
-                 'FORMAT', 
-                 formatId, 
-                 'Progress Override Removed (Provider Reference Changed)', 
-                 format.progress_override.toString(), 
-                 null, 
-                 'USER'
-               );
+               const progressService = new ProgressService(this.dbService);
+               progressService.removeOverride(formatId, 'PROVIDER_REFERENCE_CHANGED');
              }
              
              // Update the external reference
